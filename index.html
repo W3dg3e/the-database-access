@@ -29,43 +29,83 @@ input, button {
 
 <input id="email" placeholder="EMAIL"><br>
 <input id="password" type="password" placeholder="PASSWORD"><br>
+<input id="username" placeholder="USERNAME (UNIQUE)"><br>
+<input id="display" placeholder="DISPLAY_NAME"><br>
+
 
 <button onclick="signup()">SIGN_UP</button>
 <button onclick="login()">LOG_IN</button>
 
 <p id="status"></p>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 
+<script>
 const firebaseConfig = {
-  apiKey: "AIzaSyAAoN35Mc2gIu5PnpgRIznYs1sUQ3y8dn4",
-  authDomain: "the-database-55183.firebaseapp.com",
-  projectId: "the-database-55183"
+  apiKey: "PASTE_API_KEY_HERE",
+  authDomain: "PASTE_AUTH_DOMAIN_HERE",
+  projectId: "PASTE_PROJECT_ID_HERE"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth();
+firebase.initializeApp(firebaseConfig);
 
-window.signup = async () => {
-  try {
-    await createUserWithEmailAndPassword(auth, email.value, password.value);
-    status.innerText = "ACCOUNT_CREATED";
-  } catch (e) {
-    status.innerText = e.message;
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+const status = document.getElementById("status");
+
+function signup() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  const username = document.getElementById("username").value;
+  const display = document.getElementById("display").value;
+
+  if (!username || !display) {
+    status.innerText = "USERNAME_AND_DISPLAY_REQUIRED";
+    return;
   }
-};
 
-window.login = async () => {
-  try {
-    await signInWithEmailAndPassword(auth, email.value, password.value);
-    status.innerText = "LOGGED_IN";
-  } catch (e) {
-    status.innerText = e.message;
-  }
-};
+  db.collection("usernames").doc(username).get().then(doc => {
+    if (doc.exists) {
+      status.innerText = "USERNAME_ALREADY_TAKEN";
+    } else {
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(cred => {
+          return db.collection("users").doc(cred.user.uid).set({
+            username: username,
+            displayName: display
+          }).then(() => {
+            return db.collection("usernames").doc(username).set({
+              uid: cred.user.uid
+            });
+          });
+        })
+        .then(() => {
+          status.innerText = "ACCOUNT_CREATED";
+        })
+        .catch(err => {
+          status.innerText = err.message;
+        });
+    }
+  });
+}
+
+function login() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  auth.signInWithEmailAndPassword(email, password)
+    .then(() => {
+      status.innerText = "LOGGED_IN";
+    })
+    .catch(err => {
+      status.innerText = err.message;
+    });
+}
 </script>
+
 
 </body>
 </html>
