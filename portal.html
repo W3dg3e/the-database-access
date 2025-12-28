@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>THE_DATABASE_ACCESS</title>
+<style>
+body {
+  background: black;
+  color: #00ff66;
+  font-family: monospace;
+  padding: 12px;
+}
+
+input, button {
+  background: black;
+  color: #00ff66;
+  border: 1px solid #00ff66;
+  margin: 4px 0;
+  font-family: monospace;
+}
+
+.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div id="loggedOut">
+  username:<br>
+  <input id="username"><br>
+  display.name:<br>
+  <input id="display"><br>
+  password:<br>
+  <input id="password" type="password"><br>
+  <button onclick="login()">SIGN_IN</button>
+</div>
+
+<div id="loggedIn" class="hidden">
+  logged.in.as.<span id="name"></span><br>
+  <button onclick="logout()">LOG_OUT</button>
+</div>
+
+<script>
+function login() {
+  const display = document.getElementById("display").value;
+  if (!display) return;
+
+  localStorage.setItem("displayName", display);
+  showState();
+}
+
+function logout() {
+  localStorage.removeItem("displayName");
+  showState();
+}
+
+function showState() {
+  const name = localStorage.getItem("displayName");
+
+  if (name) {
+    document.getElementById("loggedOut").classList.add("hidden");
+    document.getElementById("loggedIn").classList.remove("hidden");
+    document.getElementById("name").textContent = name;
+  } else {
+    document.getElementById("loggedIn").classList.add("hidden");
+    document.getElementById("loggedOut").classList.remove("hidden");
+  }
+}
+
+showState();
+</script>
+
+</body>
+</html>
