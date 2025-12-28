@@ -75,11 +75,12 @@ input, button {
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbwT2FnZA1rfA20xstYhAynWe0Hoj_d5CvUMvW3-U9Gd2JcE6pdycxyrIQ_JJeRjoLEtAQ/exec";
 
-function users(){ return JSON.parse(localStorage.getItem("users")||"{}"); }
-function saveUsers(u){ localStorage.setItem("users",JSON.stringify(u)); }
-function current(){ return localStorage.getItem("currentUser"); }
+const TROPHY_IMG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAM1BMVEUAAAD///////////////////////////////////////////////8fHx9cGqFZAAAAEHRSTlMAAQIDBAUGBwgJCgsMDQ4Pz2x1AAAAKElEQVQY02NgQAXGJiYmJgYGBgZGJiYmJgYGAAIMABJcAE9Xy0SAAAAAElFTkSuQmCC";
 
-function setError(t){ document.getElementById("error").textContent=t||""; }
+function users(){return JSON.parse(localStorage.getItem("users")||"{}");}
+function saveUsers(u){localStorage.setItem("users",JSON.stringify(u));}
+function current(){return localStorage.getItem("currentUser");}
+function setError(t){document.getElementById("error").textContent=t||"";}
 
 function signup(){
   setError("");
@@ -88,7 +89,7 @@ function signup(){
   if(!u||!p) return setError("missing.fields");
   if(all[u]) return setError("account.exists");
 
-  all[u]={pass:p,display:u,verified:false,email:"",vcode:"",lcode:"",trophy:false};
+  all[u]={pass:p,display:u,verified:false,email:"",vcode:"",trophy:false};
   saveUsers(all);
   localStorage.setItem("currentUser",u);
   updateUI();
@@ -101,26 +102,6 @@ function login(){
   if(!all[u]) return setError("account.not.found");
   if(all[u].pass!==p) return setError("wrong.password");
 
-  if(all[u].verified){
-    const code=Math.floor(100000+Math.random()*900000).toString();
-    all[u].lcode=code;
-    saveUsers(all);
-    fetch(API_URL,{method:"POST",body:JSON.stringify({email:all[u].email,code})});
-    localStorage.setItem("pending2sa",u);
-    return setError("2sa.code.sent");
-  }
-
-  localStorage.setItem("currentUser",u);
-  updateUI();
-}
-
-function confirm2sa(){
-  const u=localStorage.getItem("pending2sa");
-  const input=document.getElementById("code").value;
-  const all=users();
-  if(!u||input!==all[u].lcode) return setError("wrong.code");
-
-  localStorage.removeItem("pending2sa");
   localStorage.setItem("currentUser",u);
   updateUI();
 }
@@ -135,6 +116,7 @@ function setDisplay(){
   const u=current();
   const name=document.getElementById("newDisplay").value;
   if(!name) return setError("empty.display");
+
   const all=users();
   all[u].display=name;
   saveUsers(all);
@@ -147,14 +129,20 @@ function sendCode(){
   const email=document.getElementById("email").value;
   if(!email) return setError("email.required");
 
-  const code=Math.floor(10000000+Math.random()*90000000).toString(); // 8 DIGIT
+  const code=Math.floor(10000000+Math.random()*90000000).toString();
   const all=users();
+
   all[u].email=email;
   all[u].vcode=code;
   saveUsers(all);
 
-  fetch(API_URL,{method:"POST",body:JSON.stringify({email,code})});
-  setError("verification.code.sent");
+  fetch(API_URL,{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ email, code })
+  })
+  .then(()=>setError("verification.code.sent"))
+  .catch(()=>setError("email.send.failed"));
 }
 
 function verify(){
@@ -162,14 +150,16 @@ function verify(){
   const u=current();
   const input=document.getElementById("code").value;
   const all=users();
-  if(!u) return setError("not.logged.in");
+
+  if(!input) return setError("code.required");
   if(input!==all[u].vcode) return setError("wrong.code");
 
   all[u].verified=true;
   all[u].trophy=true;
   saveUsers(all);
-  updateUI();
+
   setError("ACCOUNT.VERIFIED");
+  updateUI();
 }
 
 function updateUI(){
@@ -182,13 +172,24 @@ function updateUI(){
   }
 
   hide("loggedOut"); show("loggedIn");
+
   document.getElementById("userText").textContent=u;
   document.getElementById("displayText").textContent="display.name."+all[u].display;
 
+  const vt=document.getElementById("verifyText");
+  vt.innerHTML="";
+
   if(all[u].verified){
-    document.getElementById("verifyText").textContent="verified.as."+all[u].email+" 🏆";
-  } else {
-    document.getElementById("verifyText").textContent="";
+    vt.textContent="verified.as."+all[u].email+" ";
+
+    if(all[u].trophy){
+      const img=document.createElement("img");
+      img.src=TROPHY_IMG;
+      img.title="VERIFIED_ACCOUNT";
+      img.style.width="16px";
+      img.style.verticalAlign="middle";
+      vt.appendChild(img);
+    }
   }
 }
 
@@ -199,6 +200,7 @@ function hide(id){document.getElementById(id).classList.add("hidden");}
 
 updateUI();
 </script>
+
 
 </body>
 </html>
