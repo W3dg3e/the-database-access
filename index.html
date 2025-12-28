@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>THE DATABASE ACCESS</title>
+
+<style>
+body {
+  background: black;
+  color: #00ff88;
+  font-family: monospace;
+  text-align: center;
+  padding-top: 40px;
+}
+
+input, button {
+  background: black;
+  color: #00ff88;
+  border: 1px solid #00ff88;
+  padding: 6px;
+  margin: 6px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>THE_DATABASE_ACCESS</h2>
+
+<input id="email" placeholder="EMAIL"><br>
+<input id="password" type="password" placeholder="PASSWORD"><br>
+
+<button onclick="signup()">SIGN_UP</button>
+<button onclick="login()">LOG_IN</button>
+
+<p id="status"></p>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAAoN35Mc2gIu5PnpgRIznYs1sUQ3y8dn4",
+  authDomain: "the-database-55183.firebaseapp.com",
+  projectId: "the-database-55183"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth();
+
+window.signup = async () => {
+  try {
+    await createUserWithEmailAndPassword(auth, email.value, password.value);
+    status.innerText = "ACCOUNT_CREATED";
+  } catch (e) {
+    status.innerText = e.message;
+  }
+};
+
+window.login = async () => {
+  try {
+    await signInWithEmailAndPassword(auth, email.value, password.value);
+    status.innerText = "LOGGED_IN";
+  } catch (e) {
+    status.innerText = e.message;
+  }
+};
+</script>
+
+</body>
+</html>
