@@ -22,6 +22,12 @@ input, button {
 
 #error { color:#00aaff; min-height:1em; }
 .hidden { display:none; }
+
+.trophy {
+  width:24px;
+  height:24px;
+  vertical-align:middle;
+}
 </style>
 </head>
 
@@ -38,8 +44,16 @@ input, button {
   <button onclick="login()">LOG_IN</button>
 </div>
 
+<div id="twoSA" class="hidden">
+  two.step.code:<br>
+  <input id="loginCode"><br>
+  <button onclick="confirm2SA()">CONFIRM</button>
+</div>
+
 <div id="loggedIn" class="hidden">
-  logged.in.as.<span id="userText"></span><br>
+  logged.in.as.<span id="userText"></span>
+  <span id="trophyBox"></span><br>
+
   <div id="displayText"></div>
   <div id="verifyText"></div>
 
@@ -59,7 +73,10 @@ input, button {
 </div>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbwT2FnZA1rfA20xstYhAynWe0Hoj_d5CvUMvW3-U9Gd2JcE6pdycxyrIQ_JJeRjoLEtAQ/exec";
+const API_URL =
+"https://script.google.com/macros/s/AKfycbwT2FnZA1rfA20xstYhAynWe0Hoj_d5CvUMvW3-U9Gd2JcE6pdycxyrIQ_JJeRjoLEtAQ/exec";
+
+/* ---------- STORAGE ---------- */
 
 function users() {
   return JSON.parse(localStorage.getItem("users") || "{}");
@@ -70,6 +87,8 @@ function saveUsers(u) {
 function setError(t) {
   document.getElementById("error").textContent = t;
 }
+
+/* ---------- AUTH ---------- */
 
 function signup() {
   const u = uEl().value;
@@ -84,7 +103,8 @@ function signup() {
     display: u,
     verified: false,
     email: "",
-    code: ""
+    code: "",
+    trophies: []
   };
   saveUsers(all);
   login();
@@ -98,6 +118,41 @@ function login() {
   if (!all[u]) return setError("account.not.found");
   if (all[u].pass !== p) return setError("wrong.password");
 
+  if (all[u].verified) {
+    sendLoginCode(u);
+    localStorage.setItem("pending2SA", u);
+    show("twoSA");
+    hide("loggedOut");
+    return;
+  }
+
+  localStorage.setItem("currentUser", u);
+  updateUI();
+}
+
+function sendLoginCode(u) {
+  const all = users();
+  const code = Math.floor(100000 + Math.random()*900000).toString();
+
+  all[u].code = code;
+  saveUsers(all);
+
+  fetch(API_URL, {
+    method:"POST",
+    body: JSON.stringify({ email: all[u].email, code })
+  });
+
+  setError("two.step.code.sent");
+}
+
+function confirm2SA() {
+  const u = localStorage.getItem("pending2SA");
+  const input = document.getElementById("loginCode").value;
+  const all = users();
+
+  if (input !== all[u].code) return setError("wrong.code");
+
+  localStorage.removeItem("pending2SA");
   localStorage.setItem("currentUser", u);
   updateUI();
 }
@@ -106,6 +161,8 @@ function logout() {
   localStorage.removeItem("currentUser");
   updateUI();
 }
+
+/* ---------- DISPLAY ---------- */
 
 function setDisplay() {
   const u = current();
@@ -120,12 +177,14 @@ function setDisplay() {
     "display.name.set.to." + name;
 }
 
+/* ---------- VERIFICATION ---------- */
+
 function sendCode() {
   const u = current();
   const email = document.getElementById("email").value;
   if (!email) return setError("email.required");
 
-  const code = Math.floor(10000000 + Math.random()*90000000).toString();
+  const code = Math.floor(100000 + Math.random()*900000).toString();
   const all = users();
 
   all[u].email = email;
@@ -148,14 +207,23 @@ function verify() {
   if (input !== all[u].code) return setError("wrong.code");
 
   all[u].verified = true;
+
+  if (!all[u].trophies.includes("Verified_User")) {
+    all[u].trophies.push("Verified_User");
+  }
+
   saveUsers(all);
 
   document.getElementById("verifyText").textContent =
     "verified.as." + all[u].email;
 }
 
+/* ---------- UI ---------- */
+
 function updateUI() {
   const u = current();
+  hide("twoSA");
+
   if (!u) {
     show("loggedOut");
     hide("loggedIn");
@@ -169,10 +237,26 @@ function updateUI() {
   document.getElementById("userText").textContent = u;
   document.getElementById("displayText").textContent =
     "display.name." + all[u].display;
+
   if (all[u].verified) {
     document.getElementById("verifyText").textContent =
       "verified.as." + all[u].email;
   }
+
+  renderTrophy(all[u]);
+}
+
+function renderTrophy(user) {
+  const box = document.getElementById("trophyBox");
+  box.innerHTML = "";
+
+  user.trophies.forEach(t => {
+    const img = document.createElement("img");
+    img.src = "https://via.placeholder.com/24";
+    img.className = "trophy";
+    img.title = t;
+    box.appendChild(img);
+  });
 }
 
 function current() {
