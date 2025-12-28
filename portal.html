@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>THE_DATABASE_ACCESS</title>
+
 <style>
 body {
   background: black;
@@ -20,8 +21,14 @@ input, button {
 }
 
 .hidden { display: none; }
+
+button.verify {
+  color: cyan;
+  border-color: cyan;
+}
 </style>
 </head>
+
 <body>
 
 <div id="loggedOut">
@@ -35,11 +42,30 @@ input, button {
 </div>
 
 <div id="loggedIn" class="hidden">
-  logged.in.as.<span id="name"></span><br>
+  logged.in.as.<span id="name"></span><br><br>
+
+  <button class="verify" onclick="openVerification()">VERIFICATION_</button><br><br>
+
+  <div id="verificationBox" class="hidden">
+    email:<br>
+    <input id="email"><br>
+    <button onclick="sendCode()">SEND_CODE</button><br><br>
+
+    code:<br>
+    <input id="code"><br>
+    <button onclick="confirmCode()">CONFIRM</button><br><br>
+  </div>
+
+  <div id="verifiedText"></div><br>
+
   <button onclick="logout()">LOG_OUT</button>
 </div>
 
 <script>
+/* ===== CONFIG ===== */
+const API_URL = "https://script.google.com/macros/s/AKfycbyM3hpHWugB-9b-nlXz4HO6ORR_D3j6k2Ge5Hixfwmn7HS1GCIMh78camNX7-nGxwdGOw/exec";
+
+/* ===== LOGIN SYSTEM ===== */
 function login() {
   const display = document.getElementById("display").value;
   if (!display) return;
@@ -50,11 +76,13 @@ function login() {
 
 function logout() {
   localStorage.removeItem("displayName");
+  localStorage.removeItem("verifiedEmail");
   showState();
 }
 
 function showState() {
   const name = localStorage.getItem("displayName");
+  const email = localStorage.getItem("verifiedEmail");
 
   if (name) {
     document.getElementById("loggedOut").classList.add("hidden");
@@ -64,6 +92,53 @@ function showState() {
     document.getElementById("loggedIn").classList.add("hidden");
     document.getElementById("loggedOut").classList.remove("hidden");
   }
+
+  if (email) {
+    document.getElementById("verifiedText").textContent =
+      "verified.as." + email;
+  } else {
+    document.getElementById("verifiedText").textContent = "";
+  }
+}
+
+/* ===== VERIFICATION ===== */
+function openVerification() {
+  document.getElementById("verificationBox").classList.remove("hidden");
+}
+
+function sendCode() {
+  const email = document.getElementById("email").value;
+  if (!email) return;
+
+  fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "send",
+      email: email
+    })
+  });
+}
+
+function confirmCode() {
+  const email = document.getElementById("email").value;
+  const code = document.getElementById("code").value;
+
+  fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "verify",
+      email: email,
+      code: code
+    })
+  })
+  .then(r => r.text())
+  .then(result => {
+    if (result === "VERIFIED") {
+      localStorage.setItem("verifiedEmail", email);
+      showState();
+      document.getElementById("verificationBox").classList.add("hidden");
+    }
+  });
 }
 
 showState();
