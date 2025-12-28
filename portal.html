@@ -22,10 +22,17 @@ input, button {
 
 .hidden { display: none; }
 button { cursor: pointer; }
+
+#error {
+  color: #00aaff;
+  margin-top: 6px;
+}
 </style>
 </head>
 
 <body>
+
+<div id="error"></div>
 
 <div id="loggedOut">
   <button onclick="showSignUp()">SIGN_IN</button>
@@ -44,7 +51,7 @@ button { cursor: pointer; }
   </div>
 
   <div id="codeBox" class="hidden">
-    code:<br><input id="loginCode"><br>
+    verification.code:<br><input id="loginCode"><br>
     <button onclick="confirmLoginCode()">CONFIRM</button>
   </div>
 </div>
@@ -68,10 +75,13 @@ button { cursor: pointer; }
 
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbyM3hpHWugB-9b-nlXz4HO6ORR_D3j6k2Ge5Hixfwmn7HS1GCIMh78camNX7-nGxwdGOw/exec";
-
 let pendingLoginUser = null;
 
-/* ===== UTILS ===== */
+function setError(msg) {
+  document.getElementById("error").textContent = msg;
+}
+
+/* STORAGE */
 function users() {
   return JSON.parse(localStorage.getItem("users") || "{}");
 }
@@ -79,24 +89,27 @@ function saveUsers(u) {
   localStorage.setItem("users", JSON.stringify(u));
 }
 
-/* ===== UI ===== */
+/* UI */
 function showSignUp() {
-  document.getElementById("signUpBox").classList.remove("hidden");
-  document.getElementById("loginBox").classList.add("hidden");
+  setError("");
+  signUpBox.classList.remove("hidden");
+  loginBox.classList.add("hidden");
 }
 function showLogin() {
-  document.getElementById("loginBox").classList.remove("hidden");
-  document.getElementById("signUpBox").classList.add("hidden");
+  setError("");
+  loginBox.classList.remove("hidden");
+  signUpBox.classList.add("hidden");
 }
 
-/* ===== SIGN UP ===== */
+/* SIGN UP */
 function signUp() {
-  const u = su_user.value;
+  const u = su_user.value.trim();
   const p = su_pass.value;
-  if (!u || !p) return;
+
+  if (!u || !p) return setError("missing.username.or.password");
 
   const all = users();
-  if (all[u]) return;
+  if (all[u]) return setError("account.with.that.name.already.exists");
 
   all[u] = {
     pass: p,
@@ -104,26 +117,31 @@ function signUp() {
     verified: false,
     email: ""
   };
+
   saveUsers(all);
   localStorage.setItem("currentUser", u);
   showState();
 }
 
-/* ===== LOGIN ===== */
+/* LOGIN */
 function logIn() {
-  const u = li_user.value;
+  const u = li_user.value.trim();
   const p = li_pass.value;
   const all = users();
 
-  if (!all[u] || all[u].pass !== p) return;
+  if (!all[u]) return setError("account.not.found");
+  if (all[u].pass !== p) return setError("wrong.password");
+
+  setError("");
 
   if (all[u].verified) {
     pendingLoginUser = u;
+    codeBox.classList.remove("hidden");
+
     fetch(API_URL, {
       method: "POST",
       body: JSON.stringify({ action:"login", email: all[u].email })
-    });
-    document.getElementById("codeBox").classList.remove("hidden");
+    }).catch(()=>setError("email.send.failed"));
   } else {
     localStorage.setItem("currentUser", u);
     showState();
@@ -131,22 +149,21 @@ function logIn() {
 }
 
 function confirmLoginCode() {
-  const code = loginCode.value;
   fetch(API_URL, {
     method: "POST",
-    body: JSON.stringify({ action:"check", code })
+    body: JSON.stringify({ action:"check", code: loginCode.value })
   })
   .then(r=>r.text())
   .then(t=>{
-    if (t==="OK") {
-      localStorage.setItem("currentUser", pendingLoginUser);
-      pendingLoginUser = null;
-      showState();
-    }
-  });
+    if (t !== "OK") return setError("wrong.code");
+    localStorage.setItem("currentUser", pendingLoginUser);
+    pendingLoginUser = null;
+    showState();
+  })
+  .catch(()=>setError("verification.failed"));
 }
 
-/* ===== LOGGED IN ===== */
+/* LOGGED IN */
 function logout() {
   localStorage.removeItem("currentUser");
   showState();
@@ -155,6 +172,7 @@ function logout() {
 function changeDisplay() {
   const name = prompt("display.name:");
   if (!name) return;
+
   const u = localStorage.getItem("currentUser");
   const all = users();
   all[u].display = name;
@@ -162,59 +180,62 @@ function changeDisplay() {
   showState();
 }
 
-/* ===== VERIFY ===== */
+/* VERIFY */
 function verify() {
   verifyBox.classList.remove("hidden");
 }
 
 function sendVerify() {
-  const email = document.getElementById("email").value;
+  if (!email.value) return setError("email.required");
+
   fetch(API_URL, {
     method: "POST",
-    body: JSON.stringify({ action:"verify", email })
-  });
+    body: JSON.stringify({ action:"verify", email: email.value })
+  })
+  .then(()=>setError("verification.code.sent.if.email.is.valid"))
+  .catch(()=>setError("email.send.failed"));
 }
 
 function confirmVerify() {
-  const code = verifyCode.value;
   fetch(API_URL, {
     method: "POST",
-    body: JSON.stringify({ action:"check", code })
+    body: JSON.stringify({ action:"check", code: verifyCode.value })
   })
   .then(r=>r.text())
   .then(t=>{
-    if (t==="OK") {
-      const u = localStorage.getItem("currentUser");
-      const all = users();
-      all[u].verified = true;
-      all[u].email = email.value;
-      saveUsers(all);
-      showState();
-    }
+    if (t !== "OK") return setError("wrong.code");
+
+    const u = localStorage.getItem("currentUser");
+    const all = users();
+    all[u].verified = true;
+    all[u].email = email.value;
+    saveUsers(all);
+    showState();
   });
 }
 
-/* ===== STATE ===== */
+/* STATE */
 function showState() {
+  setError("");
   const u = localStorage.getItem("currentUser");
+
   if (!u) {
     loggedOut.classList.remove("hidden");
     loggedIn.classList.add("hidden");
     return;
   }
 
-  const data = users()[u];
+  const d = users()[u];
   loggedOut.classList.add("hidden");
   loggedIn.classList.remove("hidden");
 
   statusText.textContent = "logged.in.as." + u;
-  displayText.textContent = "display.name.set.to." + data.display;
-  verifyText.textContent = data.verified
-    ? "verified.as." + data.email
-    : "";
+  displayText.textContent = "display.name.set.to." + d.display;
+  verifyText.textContent = d.verified ? "verified.as." + d.email : "";
 }
 
 showState();
 </script>
+
 </body>
 </html>
