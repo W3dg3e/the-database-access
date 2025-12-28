@@ -51,7 +51,7 @@ input, button {
 </div>
 
 <div id="loggedIn" class="hidden">
-  logged.in.as.<span id="userText"></span>
+  loggeda.in.as.<span id="userText"></span>
   <span id="trophyBox"></span><br>
 
   <div id="displayText"></div>
@@ -73,210 +73,129 @@ input, button {
 </div>
 
 <script>
-const API_URL =
-"https://script.google.com/macros/s/AKfycbx3X5OYX2SsEpW7VCXtP3pLTD3GsSKkPPk8y0JBTn1X60Dz7DP61gacd2iVkDX9UFQ51w/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwT2FnZA1rfA20xstYhAynWe0Hoj_d5CvUMvW3-U9Gd2JcE6pdycxyrIQ_JJeRjoLEtAQ/exec";
 
-/* ---------- STORAGE ---------- */
+function users(){ return JSON.parse(localStorage.getItem("users")||"{}"); }
+function saveUsers(u){ localStorage.setItem("users",JSON.stringify(u)); }
+function current(){ return localStorage.getItem("currentUser"); }
 
-function users() {
-  return JSON.parse(localStorage.getItem("users") || "{}");
-}
-function saveUsers(u) {
-  localStorage.setItem("users", JSON.stringify(u));
-}
-function setError(t) {
-  document.getElementById("error").textContent = t;
-}
+function setError(t){ document.getElementById("error").textContent=t||""; }
 
-/* ---------- AUTH ---------- */
+function signup(){
+  setError("");
+  const u=uEl().value,p=pEl().value;
+  const all=users();
+  if(!u||!p) return setError("missing.fields");
+  if(all[u]) return setError("account.exists");
 
-function signup() {
-  const u = uEl().value;
-  const p = pEl().value;
-  const all = users();
-
-  if (!u || !p) return setError("missing.fields");
-  if (all[u]) return setError("account.exists");
-
-  all[u] = {
-    pass: p,
-    display: u,
-    verified: false,
-    email: "",
-    verifyCode: "",
-    loginCode: "",
-    trophies: []
-  };
-
+  all[u]={pass:p,display:u,verified:false,email:"",vcode:"",lcode:"",trophy:false};
   saveUsers(all);
-  login();
+  localStorage.setItem("currentUser",u);
+  updateUI();
 }
 
-function login() {
-  const u = uEl().value;
-  const p = pEl().value;
-  const all = users();
+function login(){
+  setError("");
+  const u=uEl().value,p=pEl().value;
+  const all=users();
+  if(!all[u]) return setError("account.not.found");
+  if(all[u].pass!==p) return setError("wrong.password");
 
-  if (!all[u]) return setError("account.not.found");
-  if (all[u].pass !== p) return setError("wrong.password");
-
-  if (all[u].verified) {
-    sendLoginCode(u);
-    localStorage.setItem("pending2SA", u);
-    show("twoSA");
-    hide("loggedOut");
-    return;
+  if(all[u].verified){
+    const code=Math.floor(100000+Math.random()*900000).toString();
+    all[u].lcode=code;
+    saveUsers(all);
+    fetch(API_URL,{method:"POST",body:JSON.stringify({email:all[u].email,code})});
+    localStorage.setItem("pending2sa",u);
+    return setError("2sa.code.sent");
   }
 
-  localStorage.setItem("currentUser", u);
+  localStorage.setItem("currentUser",u);
   updateUI();
 }
 
-function sendLoginCode(u) {
-  const all = users();
-  const code = Math.floor(100000 + Math.random()*900000).toString();
+function confirm2sa(){
+  const u=localStorage.getItem("pending2sa");
+  const input=document.getElementById("code").value;
+  const all=users();
+  if(!u||input!==all[u].lcode) return setError("wrong.code");
 
-  all[u].loginCode = code;
-  saveUsers(all);
-
-  fetch(API_URL, {
-    method:"POST",
-    body: JSON.stringify({
-      email: all[u].email,
-      code
-    })
-  });
-
-  setError("two.step.code.sent");
-}
-
-function confirm2SA() {
-  const u = localStorage.getItem("pending2SA");
-  const input = document.getElementById("loginCodeInput").value;
-  const all = users();
-
-  if (input !== all[u].loginCode)
-    return setError("wrong.code");
-
-  localStorage.removeItem("pending2SA");
-  localStorage.setItem("currentUser", u);
+  localStorage.removeItem("pending2sa");
+  localStorage.setItem("currentUser",u);
   updateUI();
 }
 
-function logout() {
+function logout(){
   localStorage.removeItem("currentUser");
   updateUI();
 }
 
-/* ---------- DISPLAY ---------- */
-
-function setDisplay() {
-  const u = current();
-  const name = document.getElementById("newDisplay").value;
-  if (!name) return setError("empty.display");
-
-  const all = users();
-  all[u].display = name;
+function setDisplay(){
+  setError("");
+  const u=current();
+  const name=document.getElementById("newDisplay").value;
+  if(!name) return setError("empty.display");
+  const all=users();
+  all[u].display=name;
   saveUsers(all);
-
-  document.getElementById("displayText").textContent =
-    "display.name.set.to." + name;
-}
-
-/* ---------- VERIFICATION ---------- */
-
-function sendVerifyCode() {
-  const u = current();
-  const email = document.getElementById("email").value;
-  if (!email) return setError("email.required");
-
-  const code = Math.floor(10000000 + Math.random()*90000000).toString();
-  const all = users();
-
-  all[u].email = email;
-  all[u].verifyCode = code;
-  saveUsers(all);
-
-  fetch(API_URL, {
-    method:"POST",
-    body: JSON.stringify({ email, code })
-  });
-
-  setError("verification.code.sent");
-}
-
-function verify() {
-  const u = current();
-  const input = document.getElementById("verifyCodeInput").value;
-  const all = users();
-
-  if (input !== all[u].verifyCode)
-    return setError("wrong.code");
-
-  all[u].verified = true;
-
-  if (!all[u].trophies.includes("Verified_User")) {
-    all[u].trophies.push("Verified_User");
-  }
-
-  saveUsers(all);
-
-  document.getElementById("verifyText").textContent =
-    "verified.as." + all[u].email;
-
   updateUI();
 }
 
-/* ---------- UI ---------- */
+function sendCode(){
+  setError("");
+  const u=current();
+  const email=document.getElementById("email").value;
+  if(!email) return setError("email.required");
 
-function updateUI() {
-  const u = current();
-  hide("twoSA");
+  const code=Math.floor(10000000+Math.random()*90000000).toString(); // 8 DIGIT
+  const all=users();
+  all[u].email=email;
+  all[u].vcode=code;
+  saveUsers(all);
 
-  if (!u) {
-    show("loggedOut");
-    hide("loggedIn");
+  fetch(API_URL,{method:"POST",body:JSON.stringify({email,code})});
+  setError("verification.code.sent");
+}
+
+function verify(){
+  setError("");
+  const u=current();
+  const input=document.getElementById("code").value;
+  const all=users();
+  if(!u) return setError("not.logged.in");
+  if(input!==all[u].vcode) return setError("wrong.code");
+
+  all[u].verified=true;
+  all[u].trophy=true;
+  saveUsers(all);
+  updateUI();
+  setError("ACCOUNT.VERIFIED");
+}
+
+function updateUI(){
+  const u=current();
+  const all=users();
+
+  if(!u){
+    show("loggedOut"); hide("loggedIn");
     return;
   }
 
-  show("loggedIn");
-  hide("loggedOut");
+  hide("loggedOut"); show("loggedIn");
+  document.getElementById("userText").textContent=u;
+  document.getElementById("displayText").textContent="display.name."+all[u].display;
 
-  const all = users();
-  document.getElementById("userText").textContent = u;
-  document.getElementById("displayText").textContent =
-    "display.name." + all[u].display;
-
-  if (all[u].verified) {
-    document.getElementById("verifyText").textContent =
-      "verified.as." + all[u].email;
+  if(all[u].verified){
+    document.getElementById("verifyText").textContent="verified.as."+all[u].email+" 🏆";
+  } else {
+    document.getElementById("verifyText").textContent="";
   }
-
-  renderTrophies(all[u]);
 }
 
-function renderTrophies(user) {
-  const box = document.getElementById("trophyBox");
-  box.innerHTML = "";
-
-  user.trophies.forEach(t => {
-    const img = document.createElement("img");
-    img.src = "https://via.placeholder.com/24";
-    img.className = "trophy";
-    img.title = t;
-    box.appendChild(img);
-  });
-}
-
-/* ---------- HELPERS ---------- */
-
-function current() {
-  return localStorage.getItem("currentUser");
-}
-function uEl(){ return document.getElementById("u"); }
-function pEl(){ return document.getElementById("p"); }
-function show(id){ document.getElementById(id).classList.remove("hidden"); }
-function hide(id){ document.getElementById(id).classList.add("hidden"); }
+function uEl(){return document.getElementById("u");}
+function pEl(){return document.getElementById("p");}
+function show(id){document.getElementById(id).classList.remove("hidden");}
+function hide(id){document.getElementById(id).classList.add("hidden");}
 
 updateUI();
 </script>
