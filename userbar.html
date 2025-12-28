@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+  margin: 0;
+  padding: 6px 12px;
+  background: black;
+  color: #00ff66;
+  font-family: monospace;
+  text-align: right;
+}
+</style>
+</head>
+<body>
+
+<span id="userDisplay">guest</span>
+
+<script>
+const name = localStorage.getItem("displayName");
+
+if (name) {
+  document.getElementById("userDisplay").textContent =
+    "logged.in.as." + name;
+} else {
+  document.getElementById("userDisplay").textContent =
+    "not.logged.in";
+}
+</script>
+
+</body>
+</html>
