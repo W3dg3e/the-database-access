@@ -46,7 +46,7 @@ input, button {
 
 <div id="twoSA" class="hidden">
   two.step.code:<br>
-  <input id="loginCode"><br>
+  <input id="loginCodeInput"><br>
   <button onclick="confirm2SA()">CONFIRM</button>
 </div>
 
@@ -63,10 +63,10 @@ input, button {
 
   email.for.verification:<br>
   <input id="email"><br>
-  <button onclick="sendCode()">SEND_CODE</button><br>
+  <button onclick="sendVerifyCode()">SEND_CODE</button><br>
 
   verification.code:<br>
-  <input id="code"><br>
+  <input id="verifyCodeInput"><br>
   <button onclick="verify()">VERIFY</button><br>
 
   <button onclick="logout()">LOG_OUT</button>
@@ -103,9 +103,11 @@ function signup() {
     display: u,
     verified: false,
     email: "",
-    code: "",
+    verifyCode: "",
+    loginCode: "",
     trophies: []
   };
+
   saveUsers(all);
   login();
 }
@@ -134,12 +136,15 @@ function sendLoginCode(u) {
   const all = users();
   const code = Math.floor(100000 + Math.random()*900000).toString();
 
-  all[u].code = code;
+  all[u].loginCode = code;
   saveUsers(all);
 
   fetch(API_URL, {
     method:"POST",
-    body: JSON.stringify({ email: all[u].email, code })
+    body: JSON.stringify({
+      email: all[u].email,
+      code
+    })
   });
 
   setError("two.step.code.sent");
@@ -147,10 +152,11 @@ function sendLoginCode(u) {
 
 function confirm2SA() {
   const u = localStorage.getItem("pending2SA");
-  const input = document.getElementById("loginCode").value;
+  const input = document.getElementById("loginCodeInput").value;
   const all = users();
 
-  if (input !== all[u].code) return setError("wrong.code");
+  if (input !== all[u].loginCode)
+    return setError("wrong.code");
 
   localStorage.removeItem("pending2SA");
   localStorage.setItem("currentUser", u);
@@ -179,16 +185,16 @@ function setDisplay() {
 
 /* ---------- VERIFICATION ---------- */
 
-function sendCode() {
+function sendVerifyCode() {
   const u = current();
   const email = document.getElementById("email").value;
   if (!email) return setError("email.required");
 
-  const code = Math.floor(100000 + Math.random()*900000).toString();
+  const code = Math.floor(10000000 + Math.random()*90000000).toString();
   const all = users();
 
   all[u].email = email;
-  all[u].code = code;
+  all[u].verifyCode = code;
   saveUsers(all);
 
   fetch(API_URL, {
@@ -201,10 +207,11 @@ function sendCode() {
 
 function verify() {
   const u = current();
-  const input = document.getElementById("code").value;
+  const input = document.getElementById("verifyCodeInput").value;
   const all = users();
 
-  if (input !== all[u].code) return setError("wrong.code");
+  if (input !== all[u].verifyCode)
+    return setError("wrong.code");
 
   all[u].verified = true;
 
@@ -216,6 +223,8 @@ function verify() {
 
   document.getElementById("verifyText").textContent =
     "verified.as." + all[u].email;
+
+  updateUI();
 }
 
 /* ---------- UI ---------- */
@@ -243,10 +252,10 @@ function updateUI() {
       "verified.as." + all[u].email;
   }
 
-  renderTrophy(all[u]);
+  renderTrophies(all[u]);
 }
 
-function renderTrophy(user) {
+function renderTrophies(user) {
   const box = document.getElementById("trophyBox");
   box.innerHTML = "";
 
@@ -258,6 +267,8 @@ function renderTrophy(user) {
     box.appendChild(img);
   });
 }
+
+/* ---------- HELPERS ---------- */
 
 function current() {
   return localStorage.getItem("currentUser");
