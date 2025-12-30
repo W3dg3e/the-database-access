@@ -146,31 +146,12 @@ function setDisplay(){
   updateUI();
 }
 
+
 function sendCode() {
-  const u = current();
-  const email = document.getElementById("email").value;
-  if (!email) return setError("email.required");
-
-  const code = Math.floor(10000000 + Math.random() * 90000000).toString(); // 8-digit
-  const all = users();
-
-  all[u].email = email;
-  all[u].code = code;
-  saveUsers(all);
-
-  fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: email, code: code })
-  })
-  .then(r => r.text())
-  .then(t => {
-    setError("verification.code.sent");
-  })
-  .catch(e => {
-    setError("email.send.failed");
-  });
+  alert("SEND_CODE_CLICKED");
 }
+
+
 
 
 function verify() {
