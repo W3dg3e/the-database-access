@@ -51,7 +51,7 @@ input, button {
 </div>
 
 <div id="loggedIn" class="hidden">
-  loggedae.in.as.<span id="userText"></span>
+  loggeddae.in.as.<span id="userText"></span>
   <span id="trophyBox"></span><br>
 
   <div id="displayText"></div>
@@ -73,7 +73,7 @@ input, button {
 </div>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbx3X5OYX2SsEpW7VCXtP3pLTD3GsSKkPPk8y0JBTn1X60Dz7DP61gacd2iVkDX9UFQ51w/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxdk8-dJ3ADNuhSwvmdrfxWH-Xzq-_kD6B-Ng_r-6UMPtDiejLCRIguza6CAH-tOqXuFw/exec";
 
 const TROPHY_IMG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAM1BMVEUAAAD///////////////////////////////////////////////8fHx9cGqFZAAAAEHRSTlMAAQIDBAUGBwgJCgsMDQ4Pz2x1AAAAKElEQVQY02NgQAXGJiYmJgYGBgZGJiYmJgYGAAIMABJcAE9Xy0SAAAAAElFTkSuQmCC";
 
@@ -101,7 +101,21 @@ function login(){
   const all=users();
   if(!all[u]) return setError("account.not.found");
   if(all[u].pass!==p) return setError("wrong.password");
+if (all[u].verified) {
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  all[u].loginCode = code;
+  saveUsers(all);
 
+  fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: all[u].email, code: code })
+  });
+
+  localStorage.setItem("pending2SA", u);
+  setError("2SA.CODE.SENT");
+  return;
+}
   localStorage.setItem("currentUser",u);
   updateUI();
 }
@@ -123,44 +137,50 @@ function setDisplay(){
   updateUI();
 }
 
-function sendCode(){
-  setError("");
-  const u=current();
-  const email=document.getElementById("email").value;
-  if(!email) return setError("email.required");
+function sendCode() {
+  const u = current();
+  const email = document.getElementById("email").value;
+  if (!email) return setError("email.required");
 
-  const code=Math.floor(10000000+Math.random()*90000000).toString();
-  const all=users();
+  const code = Math.floor(10000000 + Math.random() * 90000000).toString(); // 8-digit
+  const all = users();
 
-  all[u].email=email;
-  all[u].vcode=code;
+  all[u].email = email;
+  all[u].code = code;
   saveUsers(all);
 
-  fetch(API_URL,{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ email, code })
+  fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email, code: code })
   })
-  .then(()=>setError("verification.code.sent"))
-  .catch(()=>setError("email.send.failed"));
+  .then(r => r.text())
+  .then(t => {
+    setError("verification.code.sent");
+  })
+  .catch(e => {
+    setError("email.send.failed");
+  });
 }
 
-function verify(){
-  setError("");
-  const u=current();
-  const input=document.getElementById("code").value;
-  const all=users();
 
-  if(!input) return setError("code.required");
-  if(input!==all[u].vcode) return setError("wrong.code");
+function verify() {
+  const u = current();
+  const input = document.getElementById("code").value;
+  const all = users();
 
-  all[u].verified=true;
-  all[u].trophy=true;
+  if (!input) return setError("code.required");
+  if (input !== all[u].code) return setError("wrong.code");
+
+  all[u].verified = true;
   saveUsers(all);
+
+  document.getElementById("verifyText").textContent =
+    "verified.as." + all[u].email;
 
   setError("ACCOUNT.VERIFIED");
-  updateUI();
 }
+
 
 function updateUI(){
   const u=current();
