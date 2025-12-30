@@ -106,11 +106,20 @@ if (all[u].verified) {
   all[u].loginCode = code;
   saveUsers(all);
 
-  fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: all[u].email, code: code })
-  });
+ fetch(API_URL, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    email: email,
+    code: code
+  })
+})
+.then(r => r.text())
+.then(t => console.log("EMAIL SENT:", t))
+.catch(err => console.error("EMAIL ERROR", err));
+
 
   localStorage.setItem("pending2SA", u);
   setError("2SA.CODE.SENT");
